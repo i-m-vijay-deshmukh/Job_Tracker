@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-paper text-ink font-body;
+}
+
+::selection {
+  @apply bg-steel-100;
+}
+
+/* Visible keyboard focus ring everywhere, respecting the design's accent. */
+:focus-visible {
+  outline: 2px solid theme("colors.steel.500");
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
