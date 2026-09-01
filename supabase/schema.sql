@@ -20,9 +20,18 @@ create table if not exists public.job_cards (
   status           text not null default 'Applied'
                      check (status in ('Applied', 'OA', 'Interview', 'Offer', 'Rejected')),
   interview_date   timestamptz,
+  compensation_type text not null default 'Unpaid'
+                     check (compensation_type in ('Paid', 'Unpaid')),
+  stipend_amount   numeric(10, 2)
+                     check (stipend_amount is null or stipend_amount >= 0),
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
+
+-- If you already ran this schema before the compensation fields existed,
+-- run just these two lines to add them without recreating the table:
+-- alter table public.job_cards add column if not exists compensation_type text not null default 'Unpaid' check (compensation_type in ('Paid', 'Unpaid'));
+-- alter table public.job_cards add column if not exists stipend_amount numeric(10, 2) check (stipend_amount is null or stipend_amount >= 0);
 
 create index if not exists job_cards_user_id_idx on public.job_cards (user_id);
 create index if not exists job_cards_status_idx on public.job_cards (status);

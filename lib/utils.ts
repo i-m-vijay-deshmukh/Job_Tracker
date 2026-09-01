@@ -47,6 +47,16 @@ export function statusColorClasses(status: JobStatus): {
   return map[status];
 }
 
+/** Formats a stipend amount as Indian rupees, e.g. 45000 -> "₹45,000". */
+export function formatRupees(amount: number | null): string {
+  if (amount === null || Number.isNaN(amount)) return "—";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export function formatDate(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);

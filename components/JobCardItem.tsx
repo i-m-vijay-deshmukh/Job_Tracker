@@ -1,19 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2, FileText, Calendar, ChevronDown } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  FileText,
+  Calendar,
+  ChevronDown,
+  IndianRupee,
+} from "lucide-react";
 import { JobCard, JOB_STATUSES, STATUS_LABELS, JobStatus } from "@/lib/types";
-import { statusColorClasses, formatDate, cn } from "@/lib/utils";
+import { statusColorClasses, formatDate, formatRupees, cn } from "@/lib/utils";
 import StatusBadge from "./StatusBadge";
 import { getResumeUrl } from "@/lib/jobs";
 
 export default function JobCardItem({
   job,
+  onView,
   onEdit,
   onDelete,
   onStatusChange,
 }: {
   job: JobCard;
+  onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onStatusChange: (status: JobStatus, interviewDate?: string) => void;
@@ -35,8 +44,9 @@ export default function JobCardItem({
 
   return (
     <div
+      onClick={onView}
       className={cn(
-        "flex flex-col rounded-card border border-ink/10 border-l-4 bg-white p-4 transition hover:border-ink/20",
+        "flex cursor-pointer flex-col rounded-card border border-ink/10 border-l-4 bg-white p-4 transition hover:border-ink/20 hover:shadow-sm",
         colors.border
       )}
     >
@@ -49,14 +59,20 @@ export default function JobCardItem({
         </div>
         <div className="flex shrink-0 gap-1">
           <button
-            onClick={onEdit}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
             aria-label="Edit application"
             className="rounded-card p-1.5 text-ink/40 hover:bg-ink/5 hover:text-ink"
           >
             <Pencil size={15} />
           </button>
           <button
-            onClick={onDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
             aria-label="Delete application"
             className="rounded-card p-1.5 text-ink/40 hover:bg-status-rejected/10 hover:text-status-rejected"
           >
@@ -65,9 +81,21 @@ export default function JobCardItem({
         </div>
       </div>
 
-      {job.job_field && (
-        <p className="mt-2 text-xs font-medium text-ink/40">{job.job_field}</p>
-      )}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {job.job_field && (
+          <span className="text-xs font-medium text-ink/40">{job.job_field}</span>
+        )}
+        {job.compensation_type === "Paid" ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-status-offer/10 px-2 py-0.5 text-[11px] font-medium text-status-offer">
+            <IndianRupee size={10} />
+            {formatRupees(job.stipend_amount)}/mo
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-medium text-ink/45">
+            Unpaid
+          </span>
+        )}
+      </div>
 
       {job.skills.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -103,7 +131,10 @@ export default function JobCardItem({
       <div className="mt-4 flex items-center justify-between border-t border-ink/10 pt-3">
         <div className="relative">
           <button
-            onClick={() => setStatusMenuOpen((v) => !v)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setStatusMenuOpen((v) => !v);
+            }}
             className="flex items-center gap-1"
           >
             <StatusBadge status={job.status} />
@@ -114,13 +145,17 @@ export default function JobCardItem({
             <>
               <div
                 className="fixed inset-0 z-10"
-                onClick={() => setStatusMenuOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setStatusMenuOpen(false);
+                }}
               />
               <div className="absolute left-0 top-full z-20 mt-1 w-48 rounded-card border border-ink/10 bg-white py-1 shadow-lg">
                 {JOB_STATUSES.map((s) => (
                   <button
                     key={s}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       onStatusChange(s);
                       setStatusMenuOpen(false);
                     }}
@@ -139,7 +174,10 @@ export default function JobCardItem({
 
         {job.resume_url && (
           <button
-            onClick={openResume}
+            onClick={(e) => {
+              e.stopPropagation();
+              openResume();
+            }}
             disabled={resolvingResume}
             className="flex items-center gap-1 text-xs font-medium text-ink/50 hover:text-steel-500 disabled:opacity-50"
           >

@@ -16,6 +16,8 @@ export const STATUS_LABELS: Record<JobStatus, string> = {
   Rejected: "Rejected",
 };
 
+export type CompensationType = "Paid" | "Unpaid";
+
 export interface JobCard {
   id: string;
   user_id: string;
@@ -27,6 +29,8 @@ export interface JobCard {
   resume_url: string | null;
   status: JobStatus;
   interview_date: string | null; // ISO date string, only relevant when status === 'Interview'
+  compensation_type: CompensationType;
+  stipend_amount: number | null; // in ₹, only relevant when compensation_type === 'Paid'
   created_at: string;
   updated_at: string;
 }

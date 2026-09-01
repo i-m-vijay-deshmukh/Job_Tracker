@@ -17,6 +17,7 @@ import FilterBar from "@/components/FilterBar";
 import JobCardItem from "@/components/JobCardItem";
 import JobForm from "@/components/JobForm";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import JobDetailModal from "@/components/JobDetailModal";
 
 const EMPTY_FILTERS: JobFilters = {
   search: "",
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<JobCard | null>(null);
   const [deletingJob, setDeletingJob] = useState<JobCard | null>(null);
+  const [viewingJob, setViewingJob] = useState<JobCard | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -85,6 +87,7 @@ export default function DashboardPage() {
     if (editingJob) {
       const updated = await updateJobCard(editingJob.id, input);
       setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      setViewingJob((prev) => (prev?.id === updated.id ? updated : prev));
     } else {
       const created = await createJobCard(input);
       setJobs((prev) => [created, ...prev]);
@@ -96,12 +99,14 @@ export default function DashboardPage() {
   async function handleStatusChange(job: JobCard, status: JobStatus) {
     const updated = await updateJobStatus(job.id, status, job.interview_date ?? undefined);
     setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+    setViewingJob((prev) => (prev?.id === updated.id ? updated : prev));
   }
 
   async function handleDelete() {
     if (!deletingJob) return;
     await deleteJobCard(deletingJob.id);
     setJobs((prev) => prev.filter((j) => j.id !== deletingJob.id));
+    setViewingJob((prev) => (prev?.id === deletingJob.id ? null : prev));
     setDeletingJob(null);
   }
 
@@ -151,6 +156,7 @@ export default function DashboardPage() {
               <JobCardItem
                 key={job.id}
                 job={job}
+                onView={() => setViewingJob(job)}
                 onEdit={() => {
                   setEditingJob(job);
                   setFormOpen(true);
@@ -162,6 +168,18 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+
+      {viewingJob && !formOpen && !deletingJob && (
+        <JobDetailModal
+          job={viewingJob}
+          onClose={() => setViewingJob(null)}
+          onEdit={() => {
+            setEditingJob(viewingJob);
+            setFormOpen(true);
+          }}
+          onDelete={() => setDeletingJob(viewingJob)}
+        />
+      )}
 
       {formOpen && (
         <JobForm

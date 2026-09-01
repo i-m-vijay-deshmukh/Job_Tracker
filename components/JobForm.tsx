@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { X, Loader2, Paperclip, Link as LinkIcon } from "lucide-react";
-import { JobCard, JobCardInput, JOB_STATUSES, STATUS_LABELS } from "@/lib/types";
+import {
+  JobCard,
+  JobCardInput,
+  JOB_STATUSES,
+  STATUS_LABELS,
+  CompensationType,
+} from "@/lib/types";
 import SkillsInput from "./SkillsInput";
 import { uploadResume } from "@/lib/jobs";
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +30,12 @@ export default function JobForm({
   const [status, setStatus] = useState(initial?.status ?? "Applied");
   const [interviewDate, setInterviewDate] = useState(
     initial?.interview_date?.slice(0, 10) ?? ""
+  );
+  const [compensationType, setCompensationType] = useState<CompensationType>(
+    initial?.compensation_type ?? "Unpaid"
+  );
+  const [stipendAmount, setStipendAmount] = useState(
+    initial?.stipend_amount != null ? String(initial.stipend_amount) : ""
   );
   const [resumeMode, setResumeMode] = useState<"link" | "file">(
     "link"
@@ -60,6 +72,11 @@ export default function JobForm({
         interview_date:
           status === "Interview" && interviewDate
             ? new Date(interviewDate).toISOString()
+            : null,
+        compensation_type: compensationType,
+        stipend_amount:
+          compensationType === "Paid" && stipendAmount
+            ? Number(stipendAmount)
             : null,
       });
     } catch (err: any) {
@@ -191,6 +208,57 @@ export default function JobForm({
                   onChange={(e) => setInterviewDate(e.target.value)}
                   className="input"
                 />
+              </Field>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Compensation">
+              <div className="flex gap-1 rounded-card bg-ink/5 p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCompensationType("Paid")}
+                  className={`flex-1 rounded-[4px] py-1.5 font-medium transition ${
+                    compensationType === "Paid"
+                      ? "bg-white shadow-sm text-status-offer"
+                      : "text-ink/50"
+                  }`}
+                >
+                  Paid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompensationType("Unpaid");
+                    setStipendAmount("");
+                  }}
+                  className={`flex-1 rounded-[4px] py-1.5 font-medium transition ${
+                    compensationType === "Unpaid"
+                      ? "bg-white shadow-sm"
+                      : "text-ink/50"
+                  }`}
+                >
+                  Unpaid
+                </button>
+              </div>
+            </Field>
+            {compensationType === "Paid" && (
+              <Field label="Amount (₹)">
+                <div className="flex items-center gap-1 rounded-card border border-ink/15 px-2.5 py-2 focus-within:border-steel-500">
+                  <span className="text-sm text-ink/40">₹</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="1"
+                    inputMode="numeric"
+                    required
+                    value={stipendAmount}
+                    onChange={(e) => setStipendAmount(e.target.value)}
+                    placeholder="45000"
+                    className="w-full bg-transparent text-sm outline-none placeholder:text-ink/30"
+                  />
+                  <span className="text-xs text-ink/30">/mo</span>
+                </div>
               </Field>
             )}
           </div>
