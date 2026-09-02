@@ -1,21 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Briefcase, Loader2, Mail, ShieldCheck } from "lucide-react";
-
-type EmailStep = "enter-email" | "enter-otp";
+import { Briefcase, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [emailStep, setEmailStep] = useState<EmailStep>("enter-email");
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleGoogleLogin() {
@@ -31,42 +23,6 @@ export default function LoginPage() {
       setError(error.message);
       setGoogleLoading(false);
     }
-  }
-
-  async function handleSendOtp(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setEmailLoading(true);
-    // shouldCreateUser: true lets a brand-new email register via OTP too,
-    // not just sign in — covers the "new account registration" case.
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: true },
-    });
-    setEmailLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    setEmailStep("enter-otp");
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setEmailLoading(true);
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: "email",
-    });
-    setEmailLoading(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    router.replace("/");
-    router.refresh();
   }
 
   return (
@@ -99,77 +55,6 @@ export default function LoginPage() {
             )}
             Continue with Google
           </button>
-
-          <div className="my-5 flex items-center gap-3 text-xs text-ink/40">
-            <div className="h-px flex-1 bg-ink/10" />
-            or use your email
-            <div className="h-px flex-1 bg-ink/10" />
-          </div>
-
-          {emailStep === "enter-email" ? (
-            <form onSubmit={handleSendOtp} className="space-y-3">
-              <label className="block text-sm">
-                <span className="mb-1 block text-ink/70">Email address</span>
-                <div className="flex items-center gap-2 rounded-card border border-ink/15 px-3 py-2.5 focus-within:border-steel-500">
-                  <Mail size={15} className="text-ink/40" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-transparent text-sm outline-none placeholder:text-ink/30"
-                  />
-                </div>
-              </label>
-              <button
-                type="submit"
-                disabled={emailLoading}
-                className="flex w-full items-center justify-center gap-2 rounded-card bg-ink px-4 py-2.5 text-sm font-medium text-paper transition hover:bg-ink/90 disabled:opacity-60"
-              >
-                {emailLoading && <Loader2 size={16} className="animate-spin" />}
-                Send code
-              </button>
-              <p className="text-center text-xs text-ink/40">
-                New here? The same code signs you up automatically.
-              </p>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-3">
-              <label className="block text-sm">
-                <span className="mb-1 block text-ink/70">
-                  Enter the code sent to {email}
-                </span>
-                <div className="flex items-center gap-2 rounded-card border border-ink/15 px-3 py-2.5 focus-within:border-steel-500">
-                  <ShieldCheck size={15} className="text-ink/40" />
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    placeholder="123456"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    className="w-full bg-transparent text-sm tracking-widest outline-none placeholder:text-ink/30"
-                  />
-                </div>
-              </label>
-              <button
-                type="submit"
-                disabled={emailLoading}
-                className="flex w-full items-center justify-center gap-2 rounded-card bg-ink px-4 py-2.5 text-sm font-medium text-paper transition hover:bg-ink/90 disabled:opacity-60"
-              >
-                {emailLoading && <Loader2 size={16} className="animate-spin" />}
-                Verify and sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => setEmailStep("enter-email")}
-                className="w-full text-center text-xs text-ink/50 hover:text-ink/80"
-              >
-                Use a different email
-              </button>
-            </form>
-          )}
 
           {error && (
             <p className="mt-4 rounded-card bg-status-rejected/10 px-3 py-2 text-xs text-status-rejected">
