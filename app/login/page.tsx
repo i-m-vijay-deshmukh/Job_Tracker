@@ -3,19 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Briefcase, Loader2, Phone, ShieldCheck } from "lucide-react";
+import { Briefcase, Loader2, Mail, ShieldCheck } from "lucide-react";
 
-type PhoneStep = "enter-phone" | "enter-otp";
+type EmailStep = "enter-email" | "enter-otp";
 
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [phoneStep, setPhoneStep] = useState<PhoneStep>("enter-phone");
-  const [phone, setPhone] = useState("");
+  const [emailStep, setEmailStep] = useState<EmailStep>("enter-email");
+  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [phoneLoading, setPhoneLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleGoogleLogin() {
@@ -36,26 +36,31 @@ export default function LoginPage() {
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setPhoneLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({ phone });
-    setPhoneLoading(false);
+    setEmailLoading(true);
+    // shouldCreateUser: true lets a brand-new email register via OTP too,
+    // not just sign in — covers the "new account registration" case.
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true },
+    });
+    setEmailLoading(false);
     if (error) {
       setError(error.message);
       return;
     }
-    setPhoneStep("enter-otp");
+    setEmailStep("enter-otp");
   }
 
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setPhoneLoading(true);
+    setEmailLoading(true);
     const { error } = await supabase.auth.verifyOtp({
-      phone,
+      email,
       token: otp,
-      type: "sms",
+      type: "email",
     });
-    setPhoneLoading(false);
+    setEmailLoading(false);
     if (error) {
       setError(error.message);
       return;
@@ -97,40 +102,43 @@ export default function LoginPage() {
 
           <div className="my-5 flex items-center gap-3 text-xs text-ink/40">
             <div className="h-px flex-1 bg-ink/10" />
-            or use your phone
+            or use your email
             <div className="h-px flex-1 bg-ink/10" />
           </div>
 
-          {phoneStep === "enter-phone" ? (
+          {emailStep === "enter-email" ? (
             <form onSubmit={handleSendOtp} className="space-y-3">
               <label className="block text-sm">
-                <span className="mb-1 block text-ink/70">Phone number</span>
+                <span className="mb-1 block text-ink/70">Email address</span>
                 <div className="flex items-center gap-2 rounded-card border border-ink/15 px-3 py-2.5 focus-within:border-steel-500">
-                  <Phone size={15} className="text-ink/40" />
+                  <Mail size={15} className="text-ink/40" />
                   <input
-                    type="tel"
+                    type="email"
                     required
-                    placeholder="+1 555 123 4567"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-transparent text-sm outline-none placeholder:text-ink/30"
                   />
                 </div>
               </label>
               <button
                 type="submit"
-                disabled={phoneLoading}
+                disabled={emailLoading}
                 className="flex w-full items-center justify-center gap-2 rounded-card bg-ink px-4 py-2.5 text-sm font-medium text-paper transition hover:bg-ink/90 disabled:opacity-60"
               >
-                {phoneLoading && <Loader2 size={16} className="animate-spin" />}
+                {emailLoading && <Loader2 size={16} className="animate-spin" />}
                 Send code
               </button>
+              <p className="text-center text-xs text-ink/40">
+                New here? The same code signs you up automatically.
+              </p>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-3">
               <label className="block text-sm">
                 <span className="mb-1 block text-ink/70">
-                  Enter the code sent to {phone}
+                  Enter the code sent to {email}
                 </span>
                 <div className="flex items-center gap-2 rounded-card border border-ink/15 px-3 py-2.5 focus-within:border-steel-500">
                   <ShieldCheck size={15} className="text-ink/40" />
@@ -147,18 +155,18 @@ export default function LoginPage() {
               </label>
               <button
                 type="submit"
-                disabled={phoneLoading}
+                disabled={emailLoading}
                 className="flex w-full items-center justify-center gap-2 rounded-card bg-ink px-4 py-2.5 text-sm font-medium text-paper transition hover:bg-ink/90 disabled:opacity-60"
               >
-                {phoneLoading && <Loader2 size={16} className="animate-spin" />}
+                {emailLoading && <Loader2 size={16} className="animate-spin" />}
                 Verify and sign in
               </button>
               <button
                 type="button"
-                onClick={() => setPhoneStep("enter-phone")}
+                onClick={() => setEmailStep("enter-email")}
                 className="w-full text-center text-xs text-ink/50 hover:text-ink/80"
               >
-                Use a different number
+                Use a different email
               </button>
             </form>
           )}

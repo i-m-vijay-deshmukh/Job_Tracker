@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Briefcase, LogOut, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -11,13 +10,13 @@ export default function Navbar({
   userEmail?: string | null;
   onAddNew: () => void;
 }) {
-  const router = useRouter();
   const supabase = createClient();
 
   async function handleSignOut() {
     await supabase.auth.signOut();
-    router.replace("/login");
-    router.refresh();
+    // Full reload (not router.replace) so all client state, cached data,
+    // and in-memory forms are wiped clean on logout.
+    window.location.href = "/login";
   }
 
   return (
