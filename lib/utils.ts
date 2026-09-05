@@ -1,4 +1,4 @@
-import { JobStatus } from "./types";
+import { JobCard, JobStatus } from "./types";
 
 /** Merge class names, skipping falsy values. */
 export function cn(...classes: (string | false | null | undefined)[]) {
@@ -79,3 +79,84 @@ export function parseSkillsInput(raw: string): string[] {
     )
   );
 }
+
+// ---------------------------------------------------------------------------
+// Follow-up reminders
+// ---------------------------------------------------------------------------
+
+/** Applications sitting this long with no update are flagged for follow-up. */
+export const STALE_DAYS_THRESHOLD = 14;
+
+/** Whole days elapsed since the given ISO timestamp. */
+export function daysSince(iso: string): number {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 0;
+  const diffMs = Date.now() - then;
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+/**
+ * A job is "stale" (worth a follow-up nudge) if it's still waiting on a
+ * response — Applied or OA — and hasn't been updated in a while. Interview,
+ * Offer, and Rejected all mean something already moved, so they're excluded.
+ */
+export function isStale(job: JobCard): boolean {
+  if (job.status !== "Applied" && job.status !== "OA") return false;
+  return daysSince(job.updated_at) >= STALE_DAYS_THRESHOLD;
+}
+
+// ---------------------------------------------------------------------------
+// Add to calendar
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds and downloads a .ics file for a job's interview date, as an
+ * all-day event. Works with Google Calendar, Apple Calendar, and Outlook —
+ * no calendar API or account connection required.
+ */
+export function downloadInterviewICS(job: JobCard): void {
+  if (!job.interview_date) return;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const asICSDate = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`;
+  const escapeICSText = (text: string) =>
+    text.replace(/([,;])/g, "\\$1").replace(/\n/g, "\\n");
+
+  const start = new Date(job.interview_date);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+
+  const stamp =
+    `${asICSDate(new Date())}T` +
+    `${pad(new Date().getUTCHours())}${pad(new Date().getUTCMinutes())}${pad(
+      new Date().getUTCSeconds()
+    )}Z`;
+
+  const summary = escapeICSText(`Interview: ${job.job_title} at ${job.company_name}`);
+  const description = escapeICSText(
+    `Interview for the ${job.job_title} role at ${job.company_name}.` +
+      (job.job_field ? ` (${job.job_field})` : "")
+  );
+
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Job Tracker//EN",
+    "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    `UID:${job.id}@job-tracker`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;VALUE=DATE:${asICSDate(start)}`,
+    `DTEND;VALUE=DATE:${asICSDate(end)}`,
+    `SUMMARY:${summary}`,
+    `DESCRIPTION:${description}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  const safeName
