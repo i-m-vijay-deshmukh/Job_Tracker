@@ -159,4 +159,10 @@ export function downloadInterviewICS(job: JobCard): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  const safeName
+  const safeName = job.company_name.trim().replace(/\s+/g, "-").toLowerCase() || "interview";
+  link.download = `interview-${safeName}.ics`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}

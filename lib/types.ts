@@ -28,10 +28,10 @@ export interface JobCard {
   job_description: string | null;
   resume_url: string | null;
   status: JobStatus;
-  interview_date: string | null;
-  oa_date: string | null;
+  interview_date: string | null; // ISO date string, only relevant when status === 'Interview'
+  oa_date: string | null; // ISO date string, only relevant when status === 'OA'
   compensation_type: CompensationType;
-  stipend_amount: number | null;
+  stipend_amount: number | null; // in ₹, only relevant when compensation_type === 'Paid'
   created_at: string;
   updated_at: string;
 }
