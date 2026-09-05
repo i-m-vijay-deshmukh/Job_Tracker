@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Loader2, Paperclip, Link as LinkIcon } from "lucide-react";
+import { X, Loader2, Paperclip, Link as LinkIcon, AlertTriangle } from "lucide-react";
 import {
   JobCard,
   JobCardInput,
@@ -15,10 +15,12 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function JobForm({
   initial,
+  existingJobs = [],
   onCancel,
   onSubmit,
 }: {
   initial?: JobCard | null;
+  existingJobs?: JobCard[];
   onCancel: () => void;
   onSubmit: (input: JobCardInput) => Promise<void>;
 }) {
@@ -31,6 +33,7 @@ export default function JobForm({
   const [interviewDate, setInterviewDate] = useState(
     initial?.interview_date?.slice(0, 10) ?? ""
   );
+  const [oaDate, setOaDate] = useState(initial?.oa_date?.slice(0, 10) ?? "");
   const [compensationType, setCompensationType] = useState<CompensationType>(
     initial?.compensation_type ?? "Unpaid"
   );
@@ -44,6 +47,15 @@ export default function JobForm({
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isDuplicate = existingJobs.some(
+    (job) =>
+      job.id !== initial?.id &&
+      job.company_name.trim().toLowerCase() === companyName.trim().toLowerCase() &&
+      job.job_title.trim().toLowerCase() === jobTitle.trim().toLowerCase() &&
+      companyName.trim() !== "" &&
+      jobTitle.trim() !== ""
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,6 +85,8 @@ export default function JobForm({
           status === "Interview" && interviewDate
             ? new Date(interviewDate).toISOString()
             : null,
+        oa_date:
+          status === "OA" && oaDate ? new Date(oaDate).toISOString() : null,
         compensation_type: compensationType,
         stipend_amount:
           compensationType === "Paid" && stipendAmount
@@ -123,6 +137,14 @@ export default function JobForm({
               />
             </Field>
           </div>
+
+          {isDuplicate && (
+            <p className="flex items-center gap-1.5 rounded-card bg-status-oa/10 px-3 py-2 text-xs font-medium text-status-oa">
+              <AlertTriangle size={13} />
+              You already have an application for this company and title. Saving
+              will add a duplicate.
+            </p>
+          )}
 
           <Field label="Job field / category">
             <input
@@ -206,6 +228,16 @@ export default function JobForm({
                   type="date"
                   value={interviewDate}
                   onChange={(e) => setInterviewDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+            )}
+            {status === "OA" && (
+              <Field label="OA date">
+                <input
+                  type="date"
+                  value={oaDate}
+                  onChange={(e) => setOaDate(e.target.value)}
                   className="input"
                 />
               </Field>

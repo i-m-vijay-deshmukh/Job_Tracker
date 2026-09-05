@@ -29,13 +29,14 @@ export interface JobCard {
   resume_url: string | null;
   status: JobStatus;
   interview_date: string | null; // ISO date string, only relevant when status === 'Interview'
+  oa_date: string | null; // ISO date string, only relevant when status === 'OA'
   compensation_type: CompensationType;
   stipend_amount: number | null; // in ₹, only relevant when compensation_type === 'Paid'
   created_at: string;
   updated_at: string;
 }
 
-export type JobCardInput = Omit<
+export type JobCardInput = Omit
   JobCard,
   "id" | "user_id" | "created_at" | "updated_at"
 >;

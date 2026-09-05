@@ -97,7 +97,12 @@ export default function DashboardPage() {
   }
 
   async function handleStatusChange(job: JobCard, status: JobStatus) {
-    const updated = await updateJobStatus(job.id, status, job.interview_date ?? undefined);
+    const updated = await updateJobStatus(
+      job.id,
+      status,
+      job.interview_date ?? undefined,
+      job.oa_date ?? undefined
+    );
     setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
     setViewingJob((prev) => (prev?.id === updated.id ? updated : prev));
   }
@@ -184,6 +189,7 @@ export default function DashboardPage() {
       {formOpen && (
         <JobForm
           initial={editingJob}
+          existingJobs={jobs}
           onCancel={() => {
             setFormOpen(false);
             setEditingJob(null);

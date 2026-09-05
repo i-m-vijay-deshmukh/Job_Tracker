@@ -7,15 +7,25 @@ import {
   Trash2,
   FileText,
   Calendar,
+  CalendarPlus,
   Loader2,
   IndianRupee,
   Building2,
   Tag,
+  BellRing,
+  Sparkles,
 } from "lucide-react";
 import { JobCard, JobStatus } from "@/lib/types";
-import { formatDate, formatRupees } from "@/lib/utils";
+import {
+  formatDate,
+  formatRupees,
+  isStale,
+  daysSince,
+  downloadInterviewICS,
+} from "@/lib/utils";
 import StatusBadge from "./StatusBadge";
 import { getResumeUrl } from "@/lib/jobs";
+import { getMyResumeText } from "@/lib/profile";
 
 export default function JobDetailModal({
   job,
@@ -29,6 +39,49 @@ export default function JobDetailModal({
   onDelete: () => void;
 }) {
   const [resolvingResume, setResolvingResume] = useState(false);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [matchResult, setMatchResult] = useState<{
+    score: number;
+    matchedSkills: string[];
+    missingSkills: string[];
+    summary: string;
+  } | null>(null);
+
+  async function handleMatchScore() {
+    setMatchError(null);
+    setMatchLoading(true);
+    setMatchResult(null);
+    try {
+      const resumeText = await getMyResumeText();
+      if (!resumeText.trim()) {
+        setMatchError(
+          "Add your resume text first — click \"Resume text\" in the top bar."
+        );
+        return;
+      }
+      if (!job.job_description || !job.job_description.trim()) {
+        setMatchError("This application doesn't have a job description saved to match against.");
+        return;
+      }
+
+      const res = await fetch("/api/match-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobDescription: job.job_description,
+          resumeText,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not compute a match score.");
+      setMatchResult(data);
+    } catch (err: any) {
+      setMatchError(err.message ?? "Could not compute a match score right now.");
+    } finally {
+      setMatchLoading(false);
+    }
+  }
 
   async function openResume() {
     if (!job.resume_url) return;
@@ -81,10 +134,26 @@ export default function JobDetailModal({
             )}
           </div>
 
+          {isStale(job) && (
+            <div className="flex items-center gap-2 rounded-card bg-status-oa/5 px-3 py-2 text-sm font-medium text-status-oa">
+              <BellRing size={15} />
+              No update in {daysSince(job.updated_at)} days — might be worth following up.
+            </div>
+          )}
+
           {job.status === "Interview" && job.interview_date && (
-            <div className="flex items-center gap-2 rounded-card bg-status-interview/5 px-3 py-2 text-sm font-medium text-status-interview">
-              <Calendar size={15} />
-              Interview scheduled for {formatDate(job.interview_date)}
+            <div className="flex items-center justify-between gap-2 rounded-card bg-status-interview/5 px-3 py-2 text-sm font-medium text-status-interview">
+              <span className="flex items-center gap-2">
+                <Calendar size={15} />
+                Interview scheduled for {formatDate(job.interview_date)}
+              </span>
+              <button
+                onClick={() => downloadInterviewICS(job)}
+                className="flex items-center gap-1.5 rounded-card bg-white px-2.5 py-1.5 text-xs font-medium text-status-interview hover:bg-status-interview/10"
+              >
+                <CalendarPlus size={13} />
+                Add to calendar
+              </button>
             </div>
           )}
 
@@ -116,6 +185,85 @@ export default function JobDetailModal({
               </p>
             </div>
           )}
+
+          <div className="rounded-card border border-ink/10 p-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink/40">
+                <Sparkles size={13} className="text-steel-500" />
+                AI resume match
+              </h3>
+              {!matchResult && (
+                <button
+                  onClick={handleMatchScore}
+                  disabled={matchLoading}
+                  className="flex items-center gap-1.5 rounded-card bg-steel-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-steel-600 disabled:opacity-60"
+                >
+                  {matchLoading ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={13} />
+                  )}
+                  Get match score
+                </button>
+              )}
+            </div>
+
+            {matchError && (
+              <p className="mt-2 text-xs text-status-rejected">{matchError}</p>
+            )}
+
+            {matchResult && (
+              <div className="mt-3 space-y-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-steel-50 font-display text-lg font-medium text-steel-700">
+                    {matchResult.score}
+                  </div>
+                  <p className="text-sm text-ink/70">{matchResult.summary}</p>
+                </div>
+                {matchResult.matchedSkills.length > 0 && (
+                  <div>
+                    <span className="text-[11px] font-medium text-ink/40">
+                      Matched
+                    </span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {matchResult.matchedSkills.map((s) => (
+                        <span
+                          key={s}
+                          className="rounded-full bg-status-offer/10 px-2 py-0.5 text-[11px] font-medium text-status-offer"
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {matchResult.missingSkills.length > 0 && (
+                  <div>
+                    <span className="text-[11px] font-medium text-ink/40">
+                      Consider adding
+                    </span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {matchResult.missingSkills.map((s) => (
+                        <span
+                          key={s}
+                          className="rounded-full bg-status-oa/10 px-2 py-0.5 text-[11px] font-medium text-status-oa"
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={handleMatchScore}
+                  disabled={matchLoading}
+                  className="text-xs font-medium text-steel-500 hover:text-steel-600"
+                >
+                  Re-run
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-3 border-t border-ink/10 pt-4 text-xs text-ink/45">
             <div>

@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Scores how well a resume matches a job description, using Google's
+ * Gemini API (free tier — see https://aistudio.google.com/apikey).
+ *
+ * The API key lives only in the server environment (GEMINI_API_KEY,
+ * no NEXT_PUBLIC_ prefix) so it's never exposed to the browser. This
+ * route also requires a signed-in Supabase session, so it can't be
+ * called by anonymous visitors and burn through your free quota.
+ */
+
 const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
@@ -70,6 +80,7 @@ RESUME:
       );
     }
 
+    // Gemini sometimes wraps JSON in ```json fences despite instructions — strip them.
     const cleaned = rawText.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
 

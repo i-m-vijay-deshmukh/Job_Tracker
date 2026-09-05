@@ -56,11 +56,13 @@ export async function updateJobCard(
 export async function updateJobStatus(
   id: string,
   status: JobStatus,
-  interviewDate?: string | null
+  interviewDate?: string | null,
+  oaDate?: string | null
 ): Promise<JobCard> {
   return updateJobCard(id, {
     status,
     interview_date: status === "Interview" ? interviewDate ?? null : null,
+    oa_date: status === "OA" ? oaDate ?? null : null,
   });
 }
 

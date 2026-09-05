@@ -1,6 +1,22 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+/**
+ * Runs once daily (see vercel.json) via Vercel Cron. For every job card
+ * with an OA or Interview happening tomorrow, emails the owning user a
+ * reminder via Resend.
+ *
+ * IMPORTANT — free-tier limitation: without a verified sending domain,
+ * Resend can only deliver to the email address you signed up to Resend
+ * with, not to arbitrary users. That's fine for a personal tracker (you
+ * get your own reminders); it won't reach other users until you verify
+ * a domain in Resend.
+ *
+ * Vercel invokes this route with a GET request and an
+ * `Authorization: Bearer <CRON_SECRET>` header. Set CRON_SECRET yourself
+ * as a Vercel project env var (any random string) — see README.
+ */
+
 function isAuthorized(request: Request): boolean {
   const expected = process.env.CRON_SECRET;
   if (!expected) return false;
@@ -8,6 +24,7 @@ function isAuthorized(request: Request): boolean {
   return header === `Bearer ${expected}`;
 }
 
+/** Returns the UTC start/end instants for "tomorrow" as ISO strings. */
 function tomorrowRangeUTC(): { start: string; end: string } {
   const now = new Date();
   const tomorrow = new Date(

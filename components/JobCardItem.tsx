@@ -8,9 +8,17 @@ import {
   Calendar,
   ChevronDown,
   IndianRupee,
+  BellRing,
 } from "lucide-react";
 import { JobCard, JOB_STATUSES, STATUS_LABELS, JobStatus } from "@/lib/types";
-import { statusColorClasses, formatDate, formatRupees, cn } from "@/lib/utils";
+import {
+  statusColorClasses,
+  formatDate,
+  formatRupees,
+  cn,
+  isStale,
+  daysSince,
+} from "@/lib/utils";
 import StatusBadge from "./StatusBadge";
 import { getResumeUrl } from "@/lib/jobs";
 
@@ -97,6 +105,13 @@ export default function JobCardItem({
         )}
       </div>
 
+      {isStale(job) && (
+        <div className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-status-oa/10 px-2 py-0.5 text-[11px] font-medium text-status-oa">
+          <BellRing size={10} />
+          No update in {daysSince(job.updated_at)}d — follow up?
+        </div>
+      )}
+
       {job.skills.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {job.skills.slice(0, 4).map((skill) => (
@@ -125,6 +140,13 @@ export default function JobCardItem({
         <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-status-interview">
           <Calendar size={13} />
           Interview on {formatDate(job.interview_date)}
+        </div>
+      )}
+
+      {job.status === "OA" && job.oa_date && (
+        <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-status-oa">
+          <Calendar size={13} />
+          OA on {formatDate(job.oa_date)}
         </div>
       )}
 
