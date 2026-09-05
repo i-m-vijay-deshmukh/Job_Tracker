@@ -18,6 +18,7 @@ import JobCardItem from "@/components/JobCardItem";
 import JobForm from "@/components/JobForm";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import JobDetailModal from "@/components/JobDetailModal";
+import ResumeTextModal from "@/components/ResumeTextModal";
 
 const EMPTY_FILTERS: JobFilters = {
   search: "",
@@ -39,6 +40,7 @@ export default function DashboardPage() {
   const [editingJob, setEditingJob] = useState<JobCard | null>(null);
   const [deletingJob, setDeletingJob] = useState<JobCard | null>(null);
   const [viewingJob, setViewingJob] = useState<JobCard | null>(null);
+  const [resumeModalOpen, setResumeModalOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -123,6 +125,7 @@ export default function DashboardPage() {
           setEditingJob(null);
           setFormOpen(true);
         }}
+        onOpenResumeText={() => setResumeModalOpen(true)}
       />
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
@@ -205,6 +208,10 @@ export default function DashboardPage() {
           onConfirm={handleDelete}
           onCancel={() => setDeletingJob(null)}
         />
+      )}
+
+      {resumeModalOpen && (
+        <ResumeTextModal onClose={() => setResumeModalOpen(false)} />
       )}
     </div>
   );

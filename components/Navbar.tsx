@@ -1,19 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import { Briefcase, LogOut, Plus, FileEdit } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import ResumeTextModal from "./ResumeTextModal";
 
 export default function Navbar({
   userEmail,
   onAddNew,
+  onOpenResumeText,
 }: {
   userEmail?: string | null;
   onAddNew: () => void;
+  onOpenResumeText: () => void;
 }) {
   const supabase = createClient();
-  const [resumeModalOpen, setResumeModalOpen] = useState(false);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -34,7 +33,7 @@ export default function Navbar({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setResumeModalOpen(true)}
+            onClick={onOpenResumeText}
             aria-label="Edit resume text for AI matching"
             className="hidden items-center gap-1.5 rounded-card border border-ink/15 px-3 py-2 text-sm font-medium text-ink/70 hover:bg-ink/5 sm:flex"
           >
@@ -62,10 +61,6 @@ export default function Navbar({
           </div>
         </div>
       </div>
-
-      {resumeModalOpen && (
-        <ResumeTextModal onClose={() => setResumeModalOpen(false)} />
-      )}
     </header>
   );
 }
