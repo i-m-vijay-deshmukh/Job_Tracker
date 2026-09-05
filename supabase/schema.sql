@@ -20,6 +20,7 @@ create table if not exists public.job_cards (
   status           text not null default 'Applied'
                      check (status in ('Applied', 'OA', 'Interview', 'Offer', 'Rejected')),
   interview_date   timestamptz,
+  oa_date          timestamptz,
   compensation_type text not null default 'Unpaid'
                      check (compensation_type in ('Paid', 'Unpaid')),
   stipend_amount   numeric(10, 2)
@@ -32,6 +33,9 @@ create table if not exists public.job_cards (
 -- run just these two lines to add them without recreating the table:
 -- alter table public.job_cards add column if not exists compensation_type text not null default 'Unpaid' check (compensation_type in ('Paid', 'Unpaid'));
 -- alter table public.job_cards add column if not exists stipend_amount numeric(10, 2) check (stipend_amount is null or stipend_amount >= 0);
+--
+-- If you already ran this schema before oa_date existed, run just this line:
+-- alter table public.job_cards add column if not exists oa_date timestamptz;
 
 create index if not exists job_cards_user_id_idx on public.job_cards (user_id);
 create index if not exists job_cards_status_idx on public.job_cards (status);
@@ -108,3 +112,38 @@ create policy "Users can delete own resumes"
     bucket_id = 'resumes'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ----------------------------------------------------------------------------
+-- Table: profiles
+-- Stores one pasted resume-text-blob per user, reused across every job card
+-- for the AI match-score feature. Kept separate from job_cards since it's
+-- one-per-user, not one-per-application.
+-- ----------------------------------------------------------------------------
+create table if not exists public.profiles (
+  user_id      uuid primary key references auth.users (id) on delete cascade,
+  resume_text  text,
+  updated_at   timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "Users can view own profile" on public.profiles;
+create policy "Users can view own profile"
+  on public.profiles for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can upsert own profile" on public.profiles;
+create policy "Users can upsert own profile"
+  on public.profiles for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile"
+  on public.profiles for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop trigger if exists set_profiles_updated_at on public.profiles;
+create trigger set_profiles_updated_at
+  before update on public.profiles
+  for each row execute function public.set_updated_at();
