@@ -83,6 +83,29 @@ function parseGeminiJSON(rawText: string): {
   );
 }
 
+/**
+ * Gemini 2.5-era models use a numeric thinkingBudget (0 fully disables
+ * thinking on Flash/Lite variants). Gemini 3.x-era models use a string
+ * thinkingLevel instead and CANNOT fully disable thinking — sending both
+ * fields in one request, or the wrong field for a model's era, causes a
+ * 400 error. So each model gets its own matching config, and token budget
+ * is generous enough to survive thinking + still fit the JSON answer.
+ */
+function buildGenerationConfig(model: string) {
+  const isLegacy25Series = /gemini-2\./.test(model);
+
+  return {
+    temperature: 0.2,
+    // Generous headroom: even minimized "thinking" on 3.x models still
+    // consumes real tokens before the actual answer starts.
+    maxOutputTokens: 2048,
+    responseMimeType: "application/json",
+    thinkingConfig: isLegacy25Series
+      ? { thinkingBudget: 0 } // fully disable thinking (2.5 Flash/Lite support this)
+      : { thinkingLevel: "low" }, // 3.x can't disable thinking, only minimize it
+  };
+}
+
 async function callGemini(prompt: string, apiKey: string): Promise<string> {
   let lastError = "";
 
@@ -94,13 +117,7 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 500,
-          // Ask the API to enforce JSON output structurally, not just via
-          // prompt instructions — far more reliable across model versions.
-          responseMimeType: "application/json",
-        },
+        generationConfig: buildGenerationConfig(model),
       }),
     });
 
