@@ -21,8 +21,70 @@ import { extractResumeText } from "@/lib/resume-extract";
  * RLS naturally prevents reading someone else's job or resume file.
  */
 
-const GEMINI_MODEL = "gemini-2.0-flash";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+/**
+ * Google renames/retires Flash model IDs every few months (gemini-2.0-flash
+ * was shut down June 1, 2026, for example). Instead of hardcoding one model
+ * and breaking again next time, this tries a short list of candidates in
+ * order and moves on if one is gone (404) or rate-limited (429).
+ *
+ * Set GEMINI_MODEL as an env var to force a specific model without a code
+ * change. Otherwise it tries Google's always-current "latest" alias first,
+ * then a few known-stable fallbacks. If ALL of these ever stop working,
+ * check https://ai.google.dev/gemini-api/docs/models for the current free
+ * Flash model ID and add it to this list (or set GEMINI_MODEL).
+ */
+const GEMINI_MODEL_CANDIDATES = [
+  process.env.GEMINI_MODEL,
+  "gemini-flash-latest",
+  "gemini-3.6-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash",
+].filter((m): m is string => Boolean(m));
+
+async function callGemini(prompt: string, apiKey: string): Promise<string> {
+  let lastError = "";
+
+  for (const model of GEMINI_MODEL_CANDIDATES) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 500 },
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const rawText: string | undefined =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (rawText) return rawText;
+      lastError = `Model "${model}" returned an empty response.`;
+      continue;
+    }
+
+    // Model was renamed/retired, or its free quota is exhausted right now —
+    // both are worth trying the next candidate for.
+    if (response.status === 404 || response.status === 429) {
+      lastError = `Model "${model}" unavailable (HTTP ${response.status}).`;
+      continue;
+    }
+
+    // Anything else (bad API key, malformed request) won't be fixed by
+    // switching models — surface it immediately instead of masking it.
+    const detail = await response.text();
+    throw new Error(`Gemini API error (${response.status}): ${detail.slice(0, 200)}`);
+  }
+
+  throw new Error(
+    `Every Gemini model candidate failed. Last error: ${lastError} ` +
+      `Google likely renamed its Flash models again — check ` +
+      `https://ai.google.dev/gemini-api/docs/models for the current model ID ` +
+      `and set GEMINI_MODEL in your environment variables to override.`
+  );
+}
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -123,33 +185,7 @@ RESUME:
 """${resumeText.slice(0, 6000)}"""`;
 
   try {
-    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 500 },
-      }),
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      return NextResponse.json(
-        { error: `Gemini API error (${response.status}): ${detail.slice(0, 200)}` },
-        { status: 502 }
-      );
-    }
-
-    const data = await response.json();
-    const rawText: string | undefined =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!rawText) {
-      return NextResponse.json(
-        { error: "Gemini returned an empty response." },
-        { status: 502 }
-      );
-    }
+    const rawText = await callGemini(prompt, apiKey);
 
     const cleaned = rawText.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
@@ -168,3 +204,4 @@ RESUME:
     );
   }
 }
+
