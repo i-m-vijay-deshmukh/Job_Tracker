@@ -113,9 +113,10 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
       continue;
     }
 
-    // Model was renamed/retired, or its free quota is exhausted right now —
-    // both are worth trying the next candidate for.
-    if (response.status === 404 || response.status === 429) {
+    // Model was renamed/retired (404), rate-limited (429), or temporarily
+    // overloaded on Google's end (500/502/503/504) — all worth trying the
+    // next candidate for instead of failing outright.
+    if ([404, 429, 500, 502, 503, 504].includes(response.status)) {
       lastError = `Model "${model}" unavailable (HTTP ${response.status}).`;
       continue;
     }
