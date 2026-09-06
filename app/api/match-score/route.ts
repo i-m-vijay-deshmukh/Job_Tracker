@@ -21,9 +21,7 @@ import { extractResumeText } from "@/lib/resume-extract";
  * RLS naturally prevents reading someone else's job or resume file.
  */
 
-// const GEMINI_MODEL = "gemini-2.0-flash";
-// const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const GEMINI_MODEL = "gemini-flash-latest";
+const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 export async function POST(request: Request) {

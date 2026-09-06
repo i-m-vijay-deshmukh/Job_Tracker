@@ -25,7 +25,6 @@ import {
 } from "@/lib/utils";
 import StatusBadge from "./StatusBadge";
 import { getResumeUrl } from "@/lib/jobs";
-import { getMyResumeText } from "@/lib/profile";
 
 export default function JobDetailModal({
   job,
@@ -46,6 +45,7 @@ export default function JobDetailModal({
     matchedSkills: string[];
     missingSkills: string[];
     summary: string;
+    resumeSource: "file" | "saved-text" | "none";
   } | null>(null);
 
   async function handleMatchScore() {
@@ -53,25 +53,10 @@ export default function JobDetailModal({
     setMatchLoading(true);
     setMatchResult(null);
     try {
-      const resumeText = await getMyResumeText();
-      if (!resumeText.trim()) {
-        setMatchError(
-          "Add your resume text first — click \"Resume text\" in the top bar."
-        );
-        return;
-      }
-      if (!job.job_description || !job.job_description.trim()) {
-        setMatchError("This application doesn't have a job description saved to match against.");
-        return;
-      }
-
       const res = await fetch("/api/match-score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobDescription: job.job_description,
-          resumeText,
-        }),
+        body: JSON.stringify({ jobId: job.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not compute a match score.");
@@ -218,7 +203,16 @@ export default function JobDetailModal({
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-steel-50 font-display text-lg font-medium text-steel-700">
                     {matchResult.score}
                   </div>
-                  <p className="text-sm text-ink/70">{matchResult.summary}</p>
+                  <div>
+                    <p className="text-sm text-ink/70">{matchResult.summary}</p>
+                    <p className="mt-0.5 text-[11px] text-ink/35">
+                      {matchResult.resumeSource === "file"
+                        ? "Read directly from this job's attached resume file."
+                        : matchResult.resumeSource === "saved-text"
+                          ? "Used your saved resume text (no readable file attached to this job)."
+                          : ""}
+                    </p>
+                  </div>
                 </div>
                 {matchResult.matchedSkills.length > 0 && (
                   <div>
