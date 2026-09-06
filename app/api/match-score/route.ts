@@ -41,6 +41,48 @@ const GEMINI_MODEL_CANDIDATES = [
   "gemini-2.5-flash",
 ].filter((m): m is string => Boolean(m));
 
+/**
+ * Gemini is asked for JSON via responseMimeType, but model output is never
+ * 100% guaranteed — some responses still arrive wrapped in markdown fences,
+ * with trailing commentary, or otherwise not parsing on the first try. This
+ * tries a plain parse first, then falls back to extracting the first
+ * {...} block before giving up, so one odd response doesn't surface a raw
+ * "Unexpected token" parser error straight to the user.
+ */
+function parseGeminiJSON(rawText: string): {
+  score: number;
+  matchedSkills: string[];
+  missingSkills: string[];
+  summary: string;
+} {
+  const attempts = [
+    rawText.trim(),
+    rawText.replace(/```json|```/g, "").trim(),
+  ];
+
+  const jsonBlockMatch = rawText.match(/\{[\s\S]*\}/);
+  if (jsonBlockMatch) attempts.push(jsonBlockMatch[0]);
+
+  for (const candidate of attempts) {
+    try {
+      const parsed = JSON.parse(candidate);
+      return {
+        score: Math.max(0, Math.min(100, Number(parsed.score) || 0)),
+        matchedSkills: Array.isArray(parsed.matchedSkills) ? parsed.matchedSkills : [],
+        missingSkills: Array.isArray(parsed.missingSkills) ? parsed.missingSkills : [],
+        summary: typeof parsed.summary === "string" ? parsed.summary : "",
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  console.error("Gemini returned unparseable output:", rawText.slice(0, 500));
+  throw new Error(
+    "The AI returned an unexpected response format. Please try again — if it keeps happening, try re-running in a minute."
+  );
+}
+
 async function callGemini(prompt: string, apiKey: string): Promise<string> {
   let lastError = "";
 
@@ -52,7 +94,13 @@ async function callGemini(prompt: string, apiKey: string): Promise<string> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 500 },
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 500,
+          // Ask the API to enforce JSON output structurally, not just via
+          // prompt instructions — far more reliable across model versions.
+          responseMimeType: "application/json",
+        },
       }),
     });
 
@@ -186,15 +234,10 @@ RESUME:
 
   try {
     const rawText = await callGemini(prompt, apiKey);
-
-    const cleaned = rawText.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
+    const result = parseGeminiJSON(rawText);
 
     return NextResponse.json({
-      score: Math.max(0, Math.min(100, Number(parsed.score) || 0)),
-      matchedSkills: Array.isArray(parsed.matchedSkills) ? parsed.matchedSkills : [],
-      missingSkills: Array.isArray(parsed.missingSkills) ? parsed.missingSkills : [],
-      summary: typeof parsed.summary === "string" ? parsed.summary : "",
+      ...result,
       resumeSource,
     });
   } catch (err: any) {
